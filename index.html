@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>سجل الطلاب</title>
+<style>
+:root {
+    --bg: #f7f1e6;
+    --paper: #fffaf0;
+    --brown: #6b4a36;
+    --brown-2: #8b5e3c;
+    --accent: #c8803f;
+    --text: #3b2a1e;
+    --muted: #8a7566;
+    --ok: #4f7a4f;
+    --warn: #b5523b;
+    --line: #d9c7b0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #2a211b; --paper: #352a22; --brown: #d9b48f; --brown-2: #c8803f;
+      --accent: #e0a060; --text: #f3e6d6; --muted: #b59c86; --line: #51402f;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Tahoma", "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text);
+    padding: env(safe-area-inset-top, 0px) 12px env(safe-area-inset-bottom, 0px);
+  }
+  .wrap { max-width: 1400px; width: 100%; margin: 0 auto; }
+  h1 {
+    text-align: center; color: var(--brown); font-size: 1.6rem;
+    border: 2px solid var(--brown-2); border-radius: 14px;
+    padding: 10px; margin: 16px auto; max-width: 340px; background: var(--paper);
+  }
+  .fields {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 10px; margin-bottom: 14px;
+  }
+  .field label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; }
+  .field select, .field input { height: 44px; }
+  @media (max-width: 640px) { .fields { grid-template-columns: repeat(2, 1fr); } }
+  .field input, .field select {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--line);
+    border-radius: 10px; background: var(--paper); color: var(--text); font-size: 1rem;
+  }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center; }
+  .btn {
+    border: none; border-radius: 10px; padding: 9px 14px; cursor: pointer;
+    background: var(--brown); color: var(--paper); font-size: .95rem;
+  }
+  .btn.secondary { background: var(--brown-2); }
+  .btn.ghost { background: transparent; color: var(--brown); border: 1px solid var(--brown-2); }
+  .stats { margin-inline-start: auto; color: var(--muted); font-size: .9rem; }
+  .tables { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .tables { grid-template-columns: 1fr; } }
+  .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--paper); }
+  table { width: 100%; border-collapse: collapse; min-width: 100%; }
+  td.name { min-width: 170px; width: 170px; }
+  td.name input { min-width: 150px; }
+  /* الجدول الأيسر مخفي دائماً، فالأيمن يأخذ العرض كاملاً */
+  .tables { grid-template-columns: 1fr !important; }
+  @media (orientation: landscape), (min-width: 900px) {
+    td.name { width: auto; min-width: 200px; }
+    td.name input { width: 100%; min-width: 0; }
+    tbody td:nth-child(3) { width: 1%; }
+  }
+  tbody td:nth-child(3) { white-space: nowrap; }
+  tbody td:nth-child(3) .chip { display: inline-block; margin: 2px 3px; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: center; }
+  th { background: var(--brown); color: var(--paper); font-weight: 600; font-size: .9rem; }
+  td.num { width: 56px; font-weight: 700; color: var(--brown); }
+  td.name input {
+    width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px;
+    background: transparent; color: var(--text); font-size: .95rem;
+  }
+  td.note input {
+    width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px;
+    background: transparent; color: var(--text); font-size: .9rem;
+  }
+  .chip {
+    border: 1px solid var(--accent); background: transparent; color: var(--text);
+    border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: .85rem;
+  }
+  .chip.on { background: var(--accent); color: #fff; }
+  .chip.absent.on { background: var(--warn); border-color: var(--warn); }
+  .chip.follow.on { background: var(--ok); border-color: var(--ok); }
+  .hint { color: var(--muted); font-size: .8rem; margin-top: 10px; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 50; padding: 12px; }
+  .panel { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; max-width: 560px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; }
+  .panel-head { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; font-weight: 700; color: var(--brown); gap: 8px; }
+  .panel-body { overflow-y: auto; padding: 12px 16px; }
+  .month { margin-bottom: 14px; }
+  .mname { font-weight: 600; margin-bottom: 6px; color: var(--brown); }
+  .days { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+  .day { aspect-ratio: 1; border: 1px solid var(--line); background: var(--paper); color: var(--text); border-radius: 4px; font-size: .7rem; padding: 0; cursor: pointer; }
+  .day.on { background: var(--warn); border-color: var(--warn); color: #fff; }
+  .gtable { width: 100%; border-collapse: collapse; }
+  .gtable th, .gtable td { padding: 8px; border-bottom: 1px solid var(--line); text-align: center; }
+  .gtable tfoot th { color: var(--brown); font-size: 1.05rem; border-top: 2px solid var(--brown); padding-top: 12px; }
+  .gin { width: 90px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--text); text-align: center; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .xbtn { border: 1px solid var(--warn); background: var(--warn); color: #fff; font-size: 1.1rem; font-weight: 700; cursor: pointer; padding: 4px 10px; border-radius: 8px; line-height: 1; }
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
+  .ntext { width: 100%; min-height: 220px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--text); font-size: 1rem; font-family: inherit; resize: vertical; }
+  @media print {
+    .toolbar, .hint, .chip, .xbtn, .overlay { display: none !important; }
+    body { background: #fff; color: #000; }
+    .table-wrap { border: none; }
+    th { background: #ddd !important; color: #000 !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>سجل الطلاب</h1>
+
+  <div class="fields">
+    <div class="field"><label for="date">التاريخ الميلادي</label><input type="date" id="date"></div>
+    <div class="field"><label for="grade">الصف</label><select id="grade"><option value="الصف الأول">الصف الأول</option><option value="الصف الثاني">الصف الثاني</option><option value="الصف الثالث">الصف الثالث</option><option value="الصف الرابع">الصف الرابع</option><option value="الصف الخامس">الصف الخامس</option><option value="الصف السادس">الصف السادس</option></select></div>
+    <div class="field"><label for="section">الشعبة</label><select id="section"><option value="أ">أ</option><option value="ب">ب</option><option value="ج">ج</option></select></div>
+    <div class="field">
+      <label for="month">الشهر</label>
+      <select id="month"></select>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="addBtn">+</button>
+    <button class="btn" id="printBtn">طباعة</button>
+    <button class="btn secondary" id="backupBtn">نسخة احتياطية</button>
+    <button class="btn ghost" id="restoreBtn">استعادة</button>
+    <input type="file" id="restoreFile" accept=".json,application/json" hidden>
+    <span class="stats" id="stats"></span>
+  </div>
+
+  <div class="tables">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ت</th>
+            <th>اسم الطالب</th>
+            <th>المحتوى</th>
+          </tr>
+        </thead>
+        <tbody id="rowsRight"></tbody>
+      </table>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ت</th>
+            <th>اسم الطالب</th>
+            <th>المحتوى</th>
+          </tr>
+        </thead>
+        <tbody id="rowsLeft"></tbody>
+      </table>
+    </div>
+  </div>
+  <p class="hint">تُحفظ البيانات تلقائياً في هذا المتصفح. استخدم "نسخة احتياطية" لحفظ ملف نسخة من السجل.</p>
+</div>
+
+<div class="overlay" id="absModal">
+  <div class="panel">
+    <div class="panel-head"><span id="absTitle"></span><button class="btn" id="absClose">إغلاق</button></div>
+    <div class="panel-body" id="absBody"></div>
+  </div>
+</div>
+
+<div class="overlay" id="folModal">
+  <div class="panel">
+    <div class="panel-head"><span id="folTitle"></span><span id="folSum" style="color:var(--accent);font-size:.95rem;"></span><button class="btn" id="folClose">إغلاق</button></div>
+    <div class="panel-body" id="folBody"></div>
+  </div>
+</div>
+
+<div class="overlay" id="noteModal">
+  <div class="panel">
+    <div class="panel-head"><span id="noteTitle"></span><button class="btn" id="noteClose">إغلاق</button></div>
+    <div class="panel-body" id="noteBody"></div>
+  </div>
+</div>
+
+
+<script>
+const $ = id => document.getElementById(id);
+const TOTAL = 50;
+const MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const KEY = "student-register-v1";
+
+const ABS_MONTHS = [
+  { key: "2026-10", name: "تشرين الأول" },
+  { key: "2026-11", name: "تشرين الثاني" },
+  { key: "2026-12", name: "كانون الأول" },
+  { key: "2027-01", name: "كانون الثاني" },
+  { key: "2027-02", name: "شباط" },
+  { key: "2027-03", name: "آذار" },
+  { key: "2027-04", name: "نيسان" },
+  { key: "2027-05", name: "أيار" }
+];
+
+function hasAbsence(s) {
+  return Object.values(s.absences || {}).some(arr => arr.some(Boolean));
+}
+
+let absModalStudent = null;
+
+function openAbsence(s, idx) {
+  absModalStudent = s;
+  $("absTitle").textContent = "الغياب - الطالب " + (idx + 1) + (s.name.trim() ? " : " + s.name : "");
+  renderAbsence();
+  $("absModal").style.display = "flex";
+}
+
+function renderAbsence() {
+  const s = absModalStudent;
+  s.absences = s.absences || {};
+  $("absBody").innerHTML = ABS_MONTHS.map(m => {
+    const arr = s.absences[m.key] || Array(30).fill(false);
+    const boxes = arr.map((on, d) =>
+      `<button class="day ${on ? "on" : ""}" data-m="${m.key}" data-d="${d}">${d + 1}</button>`
+    ).join("");
+    return `<div class="month"><div class="mname">${m.name}</div><div class="days">${boxes}</div></div>`;
+  }).join("");
+  $("absBody").querySelectorAll(".day").forEach(b => {
+    b.addEventListener("click", () => {
+      const k = b.dataset.m, d = +b.dataset.d;
+      s.absences[k] = s.absences[k] || Array(30).fill(false);
+      s.absences[k][d] = !s.absences[k][d];
+      b.classList.toggle("on", s.absences[k][d]);
+      save();
+    });
+  });
+}
+
+function closeAbsence() {
+  $("absModal").style.display = "none";
+  absModalStudent = null;
+  buildRows();
+  save();
+}
+
+$("absClose").addEventListener("click", closeAbsence);
+$("absModal").addEventListener("click", e => { if (e.target.id === "absModal") closeAbsence(); });
+
+const SUBJECTS = [
+  { key: "qawaed", name: "قواعد", max: 30 },
+  { key: "taabeer", name: "تعبير", max: 30 },
+  { key: "qiraa", name: "قراءة", max: 10 },
+  { key: "mahfoza", name: "محفوظة", max: 10 },
+  { key: "imlaa", name: "إملاء", max: 10 },
+  { key: "khatt", name: "خط", max: 10 }
+];
+
+function hasGrades(s) {
+  return Object.values(s.grades || {}).some(v => v !== "" && v != null);
+}
+
+function gradeTotal(s) {
+  return SUBJECTS.reduce((t, sub) => t + (Number((s.grades || {})[sub.key]) || 0), 0);
+}
+
+let folStudent = null;
+
+function openFollow(s, idx) {
+  folStudent = s;
+  $("folTitle").textContent = "المتابعة - الطالب " + (idx + 1) + (s.name.trim() ? " : " + s.name : "");
+  renderFollow();
+  $("folModal").style.display = "flex";
+}
+
+function renderFollow() {
+  const s = folStudent;
+  s.grades = s.grades || {};
+  $("folSum").textContent = "المجموع: " + gradeTotal(s) + " من 100";
+  $("folBody").innerHTML = `
+    <table class="gtable">
+      <thead><tr><th>المادة</th><th>الدرجة</th><th>من</th></tr></thead>
+      <tbody>
+        ${SUBJECTS.map(sub => `
+          <tr>
+            <td>${sub.name}</td>
+            <td><input class="gin" type="number" min="0" max="${sub.max}" data-k="${sub.key}" value="${s.grades[sub.key] != null ? s.grades[sub.key] : ""}"></td>
+            <td>${sub.max}</td>
+          </tr>`).join("")}
+      </tbody>
+      <tfoot><tr><th colspan="3">المجموع: <span id="folTotal">${gradeTotal(s)}</span> من 100</th></tr></tfoot>
+    </table>`;
+  $("folBody").querySelectorAll(".gin").forEach(inp => {
+    inp.addEventListener("input", () => {
+      const sub = SUBJECTS.find(x => x.key === inp.dataset.k);
+      let v = inp.value === "" ? "" : Math.min(Math.max(Number(inp.value), 0), sub.max);
+      if (v !== "" && Number(inp.value) !== v) inp.value = v;
+      s.grades[sub.key] = v;
+      $("folTotal").textContent = gradeTotal(s);
+      $("folSum").textContent = "المجموع: " + gradeTotal(s) + " من 100";
+      save();
+    });
+  });
+}
+
+function closeFollow() {
+  $("folModal").style.display = "none";
+  folStudent = null;
+  buildRows();
+  save();
+}
+
+$("folClose").addEventListener("click", closeFollow);
+$("folModal").addEventListener("click", e => { if (e.target.id === "folModal") closeFollow(); });
+
+let noteStudent = null;
+let notePage = 0;
+
+function hasNotes(s) {
+  return (s.notes || []).some(p => p && p.trim());
+}
+
+function openNote(s, idx) {
+  if (s.note && !(s.notes && s.notes.length)) s.notes = [s.note];
+  if (!s.notes || !s.notes.length) s.notes = [""];
+  noteStudent = s;
+  notePage = 0;
+  $("noteTitle").textContent = "ملاحظات - الطالب " + (idx + 1) + (s.name.trim() ? " : " + s.name : "");
+  renderNote();
+  $("noteModal").style.display = "flex";
+}
+
+function renderNote() {
+  const s = noteStudent;
+  const total = s.notes.length;
+  $("noteBody").innerHTML = `
+    <div class="nav">
+      <button class="btn ghost" id="notePrev" ${notePage === 0 ? "disabled" : ""}>السابق</button>
+      <span>الصفحة ${notePage + 1} من ${total}</span>
+      <button class="btn ghost" id="noteNext" ${notePage >= total - 1 ? "disabled" : ""}>التالي</button>
+    </div>
+    <textarea id="noteText" class="ntext" placeholder="اكتب الملاحظة هنا...">${escapeHtml(s.notes[notePage])}</textarea>
+    <div class="nav">
+      <button class="btn secondary" id="noteAdd">إضافة صفحة</button>
+      <button class="btn ghost" id="noteDel">حذف هذه الصفحة</button>
+    </div>`;
+  $("noteText").addEventListener("input", e => { s.notes[notePage] = e.target.value; save(); });
+  $("notePrev").addEventListener("click", () => { notePage--; renderNote(); });
+  $("noteNext").addEventListener("click", () => { notePage++; renderNote(); });
+  $("noteAdd").addEventListener("click", () => {
+    s.notes.push("");
+    notePage = s.notes.length - 1;
+    save();
+    renderNote();
+  });
+  $("noteDel").addEventListener("click", () => {
+    if (!confirm("حذف هذه الصفحة؟")) return;
+    s.notes.splice(notePage, 1);
+    if (!s.notes.length) s.notes = [""];
+    notePage = Math.min(notePage, s.notes.length - 1);
+    save();
+    renderNote();
+  });
+}
+
+function closeNote() {
+  $("noteModal").style.display = "none";
+  noteStudent = null;
+  buildRows();
+  save();
+}
+
+$("noteClose").addEventListener("click", closeNote);
+$("noteModal").addEventListener("click", e => { if (e.target.id === "noteModal") closeNote(); });
+
+let state = { date: "", grade: "", section: "", month: "", students: [] };
+for (let i = 0; i < 1; i++) state.students.push({ name: "", absent: false, follow: false, note: "" });
+
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (saved && saved.students) state = saved;
+  } catch (e) {}
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  updateStats();
+}
+
+function buildMonths() {
+  const sel = $("month");
+  sel.innerHTML = '' +
+    [1,2,3,4,5,6].map(n => `<option value="شهر ${n}">شهر ${n}</option>`).join("");
+}
+
+function buildRows() {
+  const right = $("rowsRight"), left = $("rowsLeft");
+  right.innerHTML = "";
+  left.innerHTML = "";
+  left.closest(".table-wrap").style.display = "none";
+  state.students.forEach((s, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="num">${i + 1}</td>
+      <td class="name"><input type="text" placeholder="اسم الطالب" value="${escapeHtml(s.name)}"></td>
+      <td>
+        <button class="chip absent ${hasAbsence(s) ? "on" : ""}" data-act="absent">الغياب</button>
+        <button class="chip follow ${hasGrades(s) ? "on" : ""}" data-act="follow">المتابعة</button>
+        <button class="chip note ${hasNotes(s) ? "on" : ""}" data-act="note">ملاحظة</button>
+      </td>
+      <td><button class="xbtn" title="مسح بيانات السطر">×</button></td>`;
+
+    tr.querySelector(".name input").addEventListener("input", e => {
+      s.name = e.target.value; save();
+    });
+
+    tr.querySelectorAll(".chip").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.act === "absent") { openAbsence(s, i); return; }
+        if (btn.dataset.act === "note") openNote(s, i); else openFollow(s, i);
+      });
+    });
+    tr.querySelector(".xbtn").addEventListener("click", () => {
+      state.students.splice(i, 1);
+      buildRows();
+      updateStats();
+      save();
+    });
+    right.appendChild(tr);
+  });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+function updateStats() {
+  const absent = state.students.filter(hasAbsence).length;
+  const follow = state.students.filter(hasGrades).length;
+  const named = state.students.filter(s => s.name.trim()).length;
+  $("stats").textContent = `الأسماء: ${named} | الغياب: ${absent} | المتابعة: ${follow}`;
+}
+
+function bindHeader() {
+  ["date","grade","section","month"].forEach(id => {
+    $(id).value = state[id] || "";
+    $(id).addEventListener("input", e => { state[id] = e.target.value; save(); });
+    $(id).addEventListener("change", e => { state[id] = e.target.value; if (id === "grade" || id === "section") switchClass(); else save(); });
+  });
+}
+
+$("printBtn").addEventListener("click", () => window.print());
+
+$("addBtn").addEventListener("click", () => {
+  state.students.push({ name: "", absences: {}, grades: {}, notes: [""] });
+  buildRows();
+  updateStats();
+  save();
+});
+
+async function doBackup() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  const name = `student-register-backup-${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}.json`;
+  const json = JSON.stringify(state);
+  try {
+    const P = window.Capacitor && window.Capacitor.Plugins;
+    if (P && P.Filesystem && P.Share) {
+      await P.Filesystem.writeFile({ path: name, data: json, directory: "CACHE", encoding: "utf8" });
+      const { uri } = await P.Filesystem.getUri({ path: name, directory: "CACHE" });
+      await P.Share.share({ title: name, url: uri, dialogTitle: "حفظ النسخة الاحتياطية" });
+      return;
+    }
+    const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (err) {
+    if (err && /cancel/i.test(String(err.message || err))) return;
+    alert("تعذر حفظ الملف");
+  }
+}
+
+$("backupBtn").addEventListener("click", doBackup);
+$("restoreBtn").addEventListener("click", () => $("restoreFile").click());
+$("restoreFile").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data.students || !Array.isArray(data.students)) throw new Error("bad");
+      state = data;
+      state.activeKey = undefined;
+      initClass();
+      bindHeader(); buildRows(); updateStats(); save();
+      alert("تمت الاستعادة بنجاح");
+    } catch (err) {
+      alert("الملف غير صالح");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+
+function classKey() {
+  return (state.grade || "") + "|" + (state.section || "");
+}
+
+function makeStudents() {
+  return Array.from({ length: 1 }, () => ({ name: "", absences: {}, grades: {}, notes: [""] }));
+}
+
+function isEmptyStudent(s) {
+  return !s.name.trim() && !hasAbsence(s) && !hasGrades(s) && !hasNotes(s);
+}
+
+function trimStudents(arr) {
+  while (arr.length > 1 && isEmptyStudent(arr[arr.length - 1])) arr.pop();
+  return arr;
+}
+
+function initClass() {
+  state.store = state.store || {};
+  if (state.activeKey === undefined) state.activeKey = classKey();
+  trimStudents(state.students);
+  state.store[state.activeKey] = state.students;
+}
+
+function switchClass() {
+  state.store = state.store || {};
+  state.store[state.activeKey] = state.students;
+  const key = classKey();
+  state.students = trimStudents(state.store[key] || makeStudents());
+  state.store[key] = state.students;
+  state.activeKey = key;
+  buildRows();
+  updateStats();
+  save();
+}
+
+load();
+buildMonths();
+if (!state.grade) state.grade = "الصف الأول";
+if (!state.section) state.section = "أ";
+if (!state.month) state.month = "شهر 1";
+bindHeader();
+initClass();
+buildRows();
+updateStats();
+</script>
+</body>
+</html>
